@@ -7,8 +7,15 @@
 //hat - handle operator					https://docs.microsoft.com/en-us/cpp/extensions/handle-to-object-operator-hat-cpp-component-extensions?view=msvc-160
 //parsing system::string into array		https://stackoverflow.com/questions/10546250/how-to-define-an-array-of-strings-in-c-cli
 //managed arrays						https://docs.microsoft.com/en-us/cpp/dotnet/how-to-use-arrays-in-cpp-cli?view=msvc-160
+//csv specification						https://datatracker.ietf.org/doc/html/rfc4180
 
 
+//Possible improvements:
+// -multiple files: add tabs for all open files that user might switch to. 
+//	Needs: change content into collection of objects, have to actively switch with tab and know which content is active
+// -csv parsing according to specification, now implemented only basic
+// -*SCOPE CREEP WARNING* add JSON compatibility
+//
 
 #pragma once
 #include <string>
@@ -22,7 +29,6 @@ namespace DBProject {
 	using namespace System::Data;
 	using namespace System::Drawing;
 	using namespace System::IO;				//File access
-	//using namespace System.Reflection		//assembly reflection ?
 
 	enum class filetype { text, csv, sql, other};
 	/// <summary>
@@ -54,11 +60,8 @@ namespace DBProject {
 	private: System::Windows::Forms::Button^ LoadButton;
 	private: System::Windows::Forms::DataGridView^ DataView;
 	private: System::Windows::Forms::OpenFileDialog^ openFileDialog;
-
-
 	private: System::Windows::Forms::SaveFileDialog^ saveFileDialog1;
-	private: System::Windows::Forms::Label^ Content_label;
-	protected:
+
 
 	private:
 		/// <summary>
@@ -67,7 +70,7 @@ namespace DBProject {
 		System::ComponentModel::Container^ components;
 		BindingSource^ bindingSource1 = gcnew BindingSource();
 		filetype datatype=filetype::other;
-		System::String^ content;		//how to initialize?
+		System::String^ content;								//how to initialize?
 		int rows = 0;
 		int cols = 0;
 
@@ -78,102 +81,137 @@ namespace DBProject {
 		/// </summary>
 		void InitializeComponent(void)
 		{
-			System::ComponentModel::ComponentResourceManager^ resources = (gcnew System::ComponentModel::ComponentResourceManager(MainForm::typeid));
 			this->SaveButton = (gcnew System::Windows::Forms::Button());
 			this->LoadButton = (gcnew System::Windows::Forms::Button());
 			this->DataView = (gcnew System::Windows::Forms::DataGridView());
 			this->openFileDialog = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->saveFileDialog1 = (gcnew System::Windows::Forms::SaveFileDialog());
-			this->Content_label = (gcnew System::Windows::Forms::Label());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->DataView))->BeginInit();
 			this->SuspendLayout();
 			// 
 			// SaveButton
 			// 
-			resources->ApplyResources(this->SaveButton, L"SaveButton");
+			this->SaveButton->Location = System::Drawing::Point(602, 23);
 			this->SaveButton->Name = L"SaveButton";
+			this->SaveButton->Size = System::Drawing::Size(121, 28);
+			this->SaveButton->TabIndex = 0;
+			this->SaveButton->Text = L"Save";
 			this->SaveButton->UseVisualStyleBackColor = true;
 			this->SaveButton->Click += gcnew System::EventHandler(this, &MainForm::SaveButton_Click);
 			// 
 			// LoadButton
 			// 
-			resources->ApplyResources(this->LoadButton, L"LoadButton");
+			this->LoadButton->Location = System::Drawing::Point(602, 57);
 			this->LoadButton->Name = L"LoadButton";
+			this->LoadButton->Size = System::Drawing::Size(119, 27);
+			this->LoadButton->TabIndex = 1;
+			this->LoadButton->Text = L"Load";
 			this->LoadButton->UseVisualStyleBackColor = true;
 			this->LoadButton->Click += gcnew System::EventHandler(this, &MainForm::LoadButton_Click);
 			// 
 			// DataView
 			// 
 			this->DataView->AllowUserToOrderColumns = true;
+			this->DataView->AutoSizeColumnsMode = System::Windows::Forms::DataGridViewAutoSizeColumnsMode::ColumnHeader;
 			this->DataView->ColumnHeadersHeightSizeMode = System::Windows::Forms::DataGridViewColumnHeadersHeightSizeMode::AutoSize;
-			resources->ApplyResources(this->DataView, L"DataView");
+			this->DataView->Dock = System::Windows::Forms::DockStyle::Left;
+			this->DataView->Location = System::Drawing::Point(0, 0);
+			this->DataView->Margin = System::Windows::Forms::Padding(10);
 			this->DataView->Name = L"DataView";
+			this->DataView->Size = System::Drawing::Size(589, 507);
+			this->DataView->TabIndex = 2;
 			// 
 			// openFileDialog
 			// 
 			this->openFileDialog->FileName = L"database";
-			resources->ApplyResources(this->openFileDialog, L"openFileDialog");
+			this->openFileDialog->Filter = L"Comma separated Values|*.csv|Pliki tekstowe|*.txt|Baza danych|*.db";
 			this->openFileDialog->FileOk += gcnew System::ComponentModel::CancelEventHandler(this, &MainForm::openFileDialog_FileOk);
 			// 
 			// saveFileDialog1
 			// 
 			this->saveFileDialog1->FileOk += gcnew System::ComponentModel::CancelEventHandler(this, &MainForm::saveFileDialog_FileOk);
 			// 
-			// Content_label
-			// 
-			resources->ApplyResources(this->Content_label, L"Content_label");
-			this->Content_label->Name = L"Content_label";
-			// 
 			// MainForm
 			// 
-			resources->ApplyResources(this, L"$this");
+			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->Controls->Add(this->Content_label);
+			this->ClientSize = System::Drawing::Size(735, 507);
 			this->Controls->Add(this->DataView);
 			this->Controls->Add(this->LoadButton);
 			this->Controls->Add(this->SaveButton);
 			this->Name = L"MainForm";
+			this->Text = L"Database Editor";
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->DataView))->EndInit();
 			this->ResumeLayout(false);
-			this->PerformLayout();
 
 		}
 #pragma endregion
 
 	//returns handle to string object
-	private: String^ getCureentContent() {
+	private: int getCureentContent() {
 		//reverse content parsing
+		switch (this->datatype)
+		{
+		case (filetype::csv): {
+			auto content2 = content;
+			this->content = "";
+			/*parse content of DataView into content*/; 
+			for each (DataGridViewRow^ row in this->DataView->Rows) {
+				for each (DataGridViewElement^ cell in this->DataView->Rows) {
+					content += cell + ",";
+				}
+				content += "\n";
+			};
+			content += "\n";
+			if (String::Compare(content, content2)) {
+				return EXIT_SUCCESS;
+			};
+		} break;
+		case (filetype::sql): {/*parse content of DataView into content*/; } break;
+		case (filetype::text): {/*parse content of text editor into content*/; } break;
+		case (filetype::other): {/*just dump content*/; } break;
+		default: {/*panic - unsupported type option*/}
+			   break;
+		};
+
+
 		std::string default = "/*return file content*/";
 		String^ content = gcnew String(default.c_str());
-		return content;
+		return EXIT_SUCCESS;
 	};
 	
+	private: String^ sanitizeline(String^ line) {
+		return line->Replace((wchar_t)'"', ' ')
+			->Replace((wchar_t)'\t', ' ')
+			->Replace((wchar_t)' ', NULL);
+	};
 	private: int parsecsv(StreamReader^ inputfile) {
+		//TODO: further improvement - Parse according to https://datatracker.ietf.org/doc/html/rfc4180
+		//	- check if has headers [how are they implemented?]
+		//	- get line and check if amount of " (quote signs) is even
+		//	  take into accunt "escape character, eg: "the "" is quote sign"
+		//		- not even - get another line into buffer and check again
+		//		- even - parse
+		//	- treat everythin inside "" as one value (blank characters are parts of the field too)
+		//	- divide fields by commas (be carefull not to include commas inside "")
+		//	- [should I take into account different delimiters ?]
+				
 		while (!inputfile->EndOfStream) {
 			String^ line = gcnew String(inputfile->ReadLine()) + "\n";
-			//sanitize
-			line = line->Replace((wchar_t)'"', NULL)
-				->Replace((wchar_t)'\t', NULL)
-				->Replace((wchar_t)' ', NULL);
-
 			array<String^>^ values = line->Split((wchar_t)',');
-
+			//line = sanitizeline(line);
 
 			if (!this->rows == 0) {
-				this->DataView->Rows->Add(values);
-				/*for each (String ^ value in values) {
-					this->DataView->Rows->Add(value, value);
-				};*/
+				this->DataView->Rows->Add(values);				//TODO: Figure out why added whiteline
 			}
 			else {
 				for each (String ^ value in values) {
 					this->DataView->Columns->Add(value, value);
-					this->cols++;
+					this->cols++;									
 				};
 			};
 			this->content += line;
 			this->rows++;
-			//this->parsedcontent->Add(line->Split((__wchar_t)"\\n"));
 		};
 		return EXIT_SUCCESS;
 	};
@@ -182,7 +220,8 @@ namespace DBProject {
 	};
 	private: int displaytext(StreamReader^ inputfile) {
 		this->content = gcnew String(inputfile->ReadToEnd());
-
+		this->DataView->Columns->Add("FileName", this->openFileDialog->FileName);
+		this->DataView->Rows->Add(this->content);
 		return EXIT_SUCCESS;
 	};
 	private: int displayother(StreamReader^ inputfile) {
@@ -224,27 +263,19 @@ namespace DBProject {
 		file->Close();
 	};
 	private: System::Void SaveButton_Click(System::Object^ sender, System::EventArgs^ e) {
-		switch (this->datatype)
-		{
-		case (filetype::csv): {/*parse content of DataView into content*/; } break;
-		case (filetype::sql): {/*parse content of DataView into content*/; } break;
-		case (filetype::text): {/*parse content of text editor into content*/; } break;
-		case (filetype::other): {/*just dump content*/; } break;
-		default: {/*panic - unsupported type option*/}
-			   break;
-		};
 		this->saveFileDialog1->ShowDialog();
 		/*dump content into specified file*/
+
 	};
 	private: System::Void saveFileDialog_FileOk(System::Object^ sender, System::ComponentModel::CancelEventArgs^ e) {
 		StreamWriter^ outputfile = gcnew StreamWriter(this->saveFileDialog1->FileName);
 		
 		//set type of file
 		
-		outputfile->Write(getCureentContent());
+		//outputfile->Write(getCureentContent());
+		outputfile->Write(this->content);
 		outputfile->Close();
 		
 	};
-
 	};
 };
