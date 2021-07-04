@@ -14,8 +14,9 @@
 // -multiple files: add tabs for all open files that user might switch to. 
 //	Needs: change content into collection of objects, have to actively switch with tab and know which content is active
 // -csv parsing according to specification, now implemented only basic
-// -*SCOPE CREEP WARNING* add JSON compatibility
-//
+// -*SCOPE CREEP WARNING* add full JSON compatibility
+// -move implementation to .cpp file if necessary (prefer to leave as drop-in header file)
+// -allow user to add columns
 
 #pragma once
 #include <string>
@@ -40,15 +41,9 @@ namespace DBProject {
 		MainForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
 		}
 
 	protected:
-		/// <summary>
-		/// Clean up any resources being used.
-		/// </summary>
 		~MainForm()
 		{
 			if (components)
@@ -71,8 +66,6 @@ namespace DBProject {
 		BindingSource^ bindingSource1 = gcnew BindingSource();
 		filetype datatype = filetype::other;
 		System::String^ content;								//how to initialize?
-		int rows = 0;
-		int cols = 0;
 
 #pragma region Windows Form Designer generated code
 		/// <summary>
@@ -148,11 +141,10 @@ namespace DBProject {
 			this->Text = L"Database Editor";
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->DataView))->EndInit();
 			this->ResumeLayout(false);
-
 		}
 #pragma endregion
 
-		//returns handle to string object
+	//returns handle to string object
 	private: int craftContentfromDataView() {
 		System::String^ content2 = "";
 		for (auto row = 0; row < this->DataView->Rows->Count - 1; row++) {	//without empty row
@@ -181,7 +173,8 @@ namespace DBProject {
 	};
 
 	private: array<String^>^ parsecsvline(String^ line) {
-		//TODO: further improvement - Parse according to https://datatracker.ietf.org/doc/html/rfc4180
+		//TODO: further improvement - Parse according to CSV specification 
+		//https://datatracker.ietf.org/doc/html/rfc4180
 		//	- check if has headers [how are they implemented?]
 		//	- get line and check if amount of " (quote signs) is even
 		//	  take into accunt "escape character, eg: "the "" is quote sign"
@@ -219,7 +212,7 @@ namespace DBProject {
 		return EXIT_SUCCESS;
 	};
 	private: int displayother(StreamReader^ inputfile) {
-		//Popup message about unsupported type
+		//Cozy place for Popup message about unsupported type
 		return EXIT_SUCCESS;
 	};
 
@@ -227,6 +220,11 @@ namespace DBProject {
 		this->openFileDialog->ShowDialog();
 	};
 	private: System::Void openFileDialog_FileOk(System::Object^ sender, System::ComponentModel::CancelEventArgs^ e) {
+		//Clear current content and displayed data
+		this->content = "";
+		this->DataView->CancelEdit();
+		this->DataView->Columns->Clear();
+		
 		StreamReader^ file = gcnew StreamReader(this->openFileDialog->FileName);
 
 		if (this->openFileDialog->FileName->Contains(".csv")) {
@@ -246,7 +244,6 @@ namespace DBProject {
 	private: System::Void SaveButton_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->saveFileDialog1->ShowDialog();
 		/*dump content into specified file*/
-
 	};
 	private: System::Void saveFileDialog_FileOk(System::Object^ sender, System::ComponentModel::CancelEventArgs^ e) {
 		UpdateContent();
